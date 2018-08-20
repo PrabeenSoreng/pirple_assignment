@@ -57,7 +57,7 @@ const unifiedServer = function(req, res) {
             if (method == 'POST') {
                 res.end(payloadString)
             } else
-                res.end(get);
+                res.end();
         });
     });
 
