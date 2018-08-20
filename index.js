@@ -5,6 +5,7 @@
 const http = require('http');
 const url = require('url');
 const config = require('./config');
+const StringDecoder = require('string_decoder').StringDecoder;
 
 const httpServer = http.createServer((req, res) => {
     unifiedServer(req, res);
@@ -23,6 +24,57 @@ const unifiedServer = function(req, res) {
     var method = req.method.toUpperCase();
     var headers = req.headers;
 
-    res.end('Hello');
+    const decoder = new StringDecoder('utf-8');
+    var buffer = '';
+
+    req.on('data', data => {
+        buffer += decoder.write(data);
+    });
+    req.on('end', () => {
+        buffer += decoder.end();
+
+        var chosenHandler = typeof(router[trimmedPath]) !== 'undefined' ?
+            router[trimmedPath] : handlers.notFound;
+
+        var data = {
+            trimmedPath,
+            queryStringObject,
+            method,
+            headers,
+            buffer
+        };
+
+        chosenHandler(data, (statuscode, payload) => {
+            statuscode = typeof(statuscode) == 'number' ? statuscode : 200;
+            payload = typeof(payload) == 'object' ? payload : {};
+
+            var payloadString = JSON.stringify(payload);
+            var get = { 'method': 'GET' };
+            get = JSON.stringify(get);
+
+            res.setHeader('Content-type', 'application/json');
+            res.writeHead(statuscode);
+            if (method == 'POST') {
+                res.end(payloadString)
+            } else
+                res.end(get);
+        });
+    });
+
     console.log(`Request received on path ${trimmedPath} with method ${method}`);
+}
+
+// Route handlers
+const handlers = {};
+
+handlers.hello = function(data, callback) {
+    callback(200, { "message": "Welcome to this assignment... This is POST request" });
+};
+
+handlers.notFound = function(data, callback) {
+    callback(404);
+}
+
+const router = {
+    'hello': handlers.hello
 }
